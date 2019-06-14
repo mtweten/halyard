@@ -21,6 +21,7 @@ import com.netflix.spinnaker.halyard.config.model.v1.node.DeploymentConfiguratio
 import com.netflix.spinnaker.halyard.core.RemoteAction;
 import com.netflix.spinnaker.halyard.core.error.v1.HalException;
 import com.netflix.spinnaker.halyard.core.problem.v1.Problem;
+import com.netflix.spinnaker.halyard.core.secrets.v1.SecretSessionManager;
 import com.netflix.spinnaker.halyard.deploy.deployment.v1.DeploymentDetails;
 import com.netflix.spinnaker.halyard.deploy.spinnaker.v1.SpinnakerRuntimeSettings;
 import lombok.extern.slf4j.Slf4j;
@@ -30,9 +31,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Slf4j
 abstract public class SpinnakerServiceProvider<D extends DeploymentDetails> {
+  @Autowired private SecretSessionManager secretSessionManager;
   public SpinnakerRuntimeSettings buildRuntimeSettings(DeploymentConfiguration deploymentConfiguration) {
     SpinnakerRuntimeSettings endpoints = new SpinnakerRuntimeSettings();
     for (SpinnakerService service : getServices()) {
@@ -40,6 +43,8 @@ abstract public class SpinnakerServiceProvider<D extends DeploymentDetails> {
         log.info("Building service settings entry for " + service.getServiceName());
         ServiceSettings settings = service.getDefaultServiceSettings(deploymentConfiguration);
         settings.mergePreferThis(service.buildServiceSettings(deploymentConfiguration));
+
+        settings.decryptSecrets(secretSessionManager);
         endpoints.setServiceSettings(service.getType(), settings);
       }
     }
